@@ -1,9 +1,9 @@
 type LayoutProps = {
-  children: React.ReactNode;
+    children: React.ReactNode;
 };
 
 const Layout = ({ children }: LayoutProps) => {
-  return <>{children}</>;
+    return <>{children}</>;
 };
 
 export default Layout;
