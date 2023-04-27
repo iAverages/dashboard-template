@@ -1,6 +1,7 @@
 import { AppProps, type AppType } from "next/app";
 import { type Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
+import { ThemeProvider } from "next-themes";
 
 import { api } from "~/utils/api";
 
@@ -21,13 +22,15 @@ const MyApp: AppType<{ session: Session | null }> = ({
     Component,
     pageProps: { session, ...pageProps },
 }: AppPropsWithLayout) => {
-    const Layout = Component.removeGlobalLayout || false ? GlobalLayout : Fragment;
+    const Layout = Component.removeGlobalLayout || false ? Fragment : GlobalLayout;
 
     return (
         <SessionProvider session={session}>
-            <Layout>
-                <Component {...pageProps} />
-            </Layout>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                <Layout>
+                    <Component {...pageProps} />
+                </Layout>
+            </ThemeProvider>
         </SessionProvider>
     );
 };
