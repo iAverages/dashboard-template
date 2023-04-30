@@ -4,6 +4,7 @@ import DiscordProvider from "next-auth/providers/discord";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { env } from "~/env.mjs";
 import { prisma } from "~/server/db";
+import { Role } from "@prisma/client";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -15,15 +16,13 @@ declare module "next-auth" {
     interface Session extends DefaultSession {
         user: {
             id: string;
-            // ...other properties
-            // role: UserRole;
+            globalRole: Role;
         } & DefaultSession["user"];
     }
 
-    // interface User {
-    //   // ...other properties
-    //   // role: UserRole;
-    // }
+    interface User {
+        role: Role;
+    }
 }
 
 /**
@@ -32,11 +31,72 @@ declare module "next-auth" {
  * @see https://next-auth.js.org/configuration/options
  */
 export const authOptions: NextAuthOptions = {
+    events: {
+        createUser: async ({ user }) => {
+            if (!user.email) {
+                throw new Error("User email is missing");
+            }
+
+            // Check if the user being created was invited to a tenant.
+            const invited = await prisma.membership.findMany({
+                where: {
+                    invitedEmail: user.email,
+                },
+                take: 1,
+            });
+
+            // Update membership to associate the user with the tenant.
+            if (invited.length > 0 || invited[0] != null) {
+                const tenant = invited[0]!;
+                await prisma.membership.update({
+                    where: {
+                        tenantId_invitedEmail: {
+                            invitedEmail: user.email,
+                            tenantId: tenant.tenantId,
+                        },
+                    },
+                    data: {
+                        userId: user.id,
+                    },
+                });
+                return;
+            }
+
+            // Default role built in, every tenant has access to this role.
+            const tenantOwnerRole = await prisma.role.findFirst({
+                where: {
+                    name: "Tenant Owner",
+                    tenantId: null,
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+            if (!tenantOwnerRole) {
+                throw new Error("Application is not configured correctly.");
+            }
+
+            // Otherwise, create a new tenant for the user.
+            await prisma.tenant.create({
+                data: {
+                    name: `${user.name}'s Tenant`,
+                    memberships: {
+                        create: {
+                            roleId: tenantOwnerRole.id,
+                            userId: user.id,
+                        },
+                    },
+                },
+            });
+        },
+    },
     callbacks: {
         session: ({ session, user }) => ({
             ...session,
             user: {
                 ...session.user,
+                globalRole: user.role,
                 id: user.id,
             },
         }),

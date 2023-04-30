@@ -118,6 +118,29 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
     });
 });
 
+const accessTenantOnly = enforceUserIsAuthed.unstable_pipe(async ({ ctx, next }) => {
+    const tenantOwnerRole = await ctx.prisma.role.findFirst({
+        where: {
+            name: "Tenant Owner",
+            tenantId: null,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!tenantOwnerRole) {
+        console.error("Tenant Owner role not found, application is in an invalid state.");
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    }
+
+    const globalMeta = {
+        roles: { tenantOwner: tenantOwnerRole },
+    };
+
+    return next({ ctx: { ...ctx, globalMeta } });
+});
+
 /**
  * Protected (authenticated) procedure
  *
@@ -127,3 +150,5 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
  * @see https://trpc.io/docs/procedures
  */
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
+
+export const tenantProcedure = t.procedure.use(accessTenantOnly);
