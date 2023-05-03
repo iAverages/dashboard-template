@@ -24,7 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
         }
 
         if (status === "authenticated" && router.pathname === "/" && data) {
-            router.push(`/${data.tenant.id}/dashboard`);
+            router.push(`/${data.id}/dashboard`);
         }
     }, [status, router, data]);
 
