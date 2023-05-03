@@ -4,7 +4,7 @@ import DiscordProvider from "next-auth/providers/discord";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { env } from "~/env.mjs";
 import { prisma } from "~/server/db";
-import { Role } from "@prisma/client";
+import { Role, User as PrismaUser } from "@prisma/client";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -20,9 +20,7 @@ declare module "next-auth" {
         } & DefaultSession["user"];
     }
 
-    interface User {
-        role: Role;
-    }
+    interface User extends PrismaUser {}
 }
 
 /**
@@ -96,7 +94,7 @@ export const authOptions: NextAuthOptions = {
             ...session,
             user: {
                 ...session.user,
-                globalRole: user.role,
+                globalRole: user.globalRole,
                 id: user.id,
             },
         }),

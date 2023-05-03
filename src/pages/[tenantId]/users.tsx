@@ -1,11 +1,10 @@
 import { useSession } from "next-auth/react";
 import { TBody, THead, Table, Td, Tr } from "~/components/table";
-import useTenant from "~/hooks/useTenant";
 import { api } from "~/utils/api";
 
 const Users = () => {
-    const [tenant] = useTenant();
-    const { data: users } = api.tenant.getMembers.useQuery({ tenantId: tenant.id });
+    const { data: tenant } = api.self.selectedTenant.useQuery();
+    const { data: users } = api.tenant.getMembers.useQuery({ tenantId: tenant!.id }, { enabled: !!tenant });
 
     const { data } = useSession();
     return (

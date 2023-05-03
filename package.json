@@ -77,9 +77,13 @@
         "prettier-plugin-tailwindcss": "^0.2.6",
         "prisma": "^4.11.0",
         "tailwindcss": "^3.3.0",
+        "tsx": "^3.12.7",
         "typescript": "^5.0.2"
     },
     "ct3aMetadata": {
         "initVersion": "7.12.0"
+    },
+    "prisma": {
+        "seed": "tsx prisma/seed.ts"
     }
 }

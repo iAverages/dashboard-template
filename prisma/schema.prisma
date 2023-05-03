@@ -4,6 +4,7 @@
 generator client {
     provider        = "prisma-client-js"
     previewFeatures = ["jsonProtocol"]
+    binaryTargets   = ["native"]
 }
 
 datasource db {
@@ -22,12 +23,12 @@ model Account {
     type              String
     provider          String
     providerAccountId String
-    refresh_token     String? // @db.Text
-    access_token      String? // @db.Text
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
     expires_at        Int?
     token_type        String?
     scope             String?
-    id_token          String? // @db.Text
+    id_token          String? @db.Text
     session_state     String?
     user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -84,6 +85,7 @@ model Membership {
     invitedName  String?
     invitedEmail String?
     roleId       String
+    selected     Boolean @default(false)
 
     @@unique([tenantId, invitedEmail])
 }
@@ -99,4 +101,6 @@ model Role {
     tenant     Tenant?      @relation(fields: [tenantId], references: [id])
     tenantId   String?
     membership Membership[]
+
+    @@unique([name, tenantId])
 }

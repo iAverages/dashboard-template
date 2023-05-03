@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { createTRPCRouter, tenantProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, tenantProcedure } from "~/server/api/trpc";
 
 export const tenantRouter = createTRPCRouter({
-    create: tenantProcedure
+    create: protectedProcedure
         .input(
             z.object({
                 name: z.string(),
@@ -15,7 +15,7 @@ export const tenantRouter = createTRPCRouter({
                     memberships: {
                         create: {
                             userId: ctx.session.user.id,
-                            roleId: ctx.globalMeta.roles.tenantOwner.id,
+                            roleId: ctx.globalMeta.roles["Tenant Owner"],
                         },
                     },
                 },
@@ -35,20 +35,14 @@ export const tenantRouter = createTRPCRouter({
         });
     }),
 
-    getMembers: tenantProcedure
-        .input(
-            z.object({
-                tenantId: z.string(),
-            })
-        )
-        .query(async ({ ctx, input }) => {
-            return ctx.prisma.membership.findMany({
-                where: {
-                    tenantId: input.tenantId,
-                },
-                select: {
-                    user: true,
-                },
-            });
-        }),
+    getMembers: tenantProcedure.query(async ({ ctx, input }) => {
+        return ctx.prisma.membership.findMany({
+            where: {
+                tenantId: input.tenantId,
+            },
+            select: {
+                user: true,
+            },
+        });
+    }),
 });

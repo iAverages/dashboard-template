@@ -24,6 +24,38 @@ type CreateContextOptions = {
     session: Session | null;
 };
 
+type GlobalTenantRoles = (typeof GLOBAL_TENANT_ROLES)[number];
+
+let roleCache: Record<GlobalTenantRoles, string> | null = null;
+
+const getGlobalMeta = async () => {
+    if (roleCache === null) {
+        const roles = await prisma.role.findMany({
+            where: {
+                name: {
+                    in: [...GLOBAL_TENANT_ROLES],
+                },
+                tenantId: null,
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        });
+
+        if (roles === null) {
+            throw new Error("Could not find global roles");
+        }
+
+        roleCache = roles.reduce((acc, role) => {
+            acc[role.name as GlobalTenantRoles] = role.id;
+            return acc;
+        }, {} as Record<GlobalTenantRoles, string>);
+    }
+
+    return { roles: roleCache };
+};
+
 /**
  * This helper generates the "internals" for a tRPC context. If you need to use it, you can export
  * it from here.
@@ -34,10 +66,12 @@ type CreateContextOptions = {
  *
  * @see https://create.t3.gg/en/usage/trpc#-serverapitrpcts
  */
-const createInnerTRPCContext = (opts: CreateContextOptions) => {
+const createInnerTRPCContext = async (opts: CreateContextOptions) => {
+    console.log(await getGlobalMeta());
     return {
         session: opts.session,
         prisma,
+        globalMeta: await getGlobalMeta(),
     };
 };
 
@@ -67,7 +101,9 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
  */
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
+import { GLOBAL_TENANT_ROLES } from "~/settings";
+import { GlobalRole } from "@prisma/client";
 
 const t = initTRPC.context<typeof createTRPCContext>().create({
     transformer: superjson,
@@ -118,29 +154,6 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
     });
 });
 
-const accessTenantOnly = enforceUserIsAuthed.unstable_pipe(async ({ ctx, next }) => {
-    const tenantOwnerRole = await ctx.prisma.role.findFirst({
-        where: {
-            name: "Tenant Owner",
-            tenantId: null,
-        },
-        select: {
-            id: true,
-        },
-    });
-
-    if (!tenantOwnerRole) {
-        console.error("Tenant Owner role not found, application is in an invalid state.");
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-    }
-
-    const globalMeta = {
-        roles: { tenantOwner: tenantOwnerRole },
-    };
-
-    return next({ ctx: { ...ctx, globalMeta } });
-});
-
 /**
  * Protected (authenticated) procedure
  *
@@ -151,4 +164,28 @@ const accessTenantOnly = enforceUserIsAuthed.unstable_pipe(async ({ ctx, next })
  */
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
 
-export const tenantProcedure = t.procedure.use(accessTenantOnly);
+export const tenantProcedure = t.procedure
+    .use(enforceUserIsAuthed)
+    .input(
+        z.object({
+            tenantId: z.string(),
+        })
+    )
+    .use(async ({ ctx, input, next }) => {
+        if (ctx.session.user.globalRole.id === GlobalRole.SUPERADMIN) {
+            return next();
+        }
+
+        const isMember = !!(await ctx.prisma.membership.findFirst({
+            where: {
+                userId: ctx.session.user.id,
+                tenantId: input.tenantId,
+            },
+        }));
+
+        if (!isMember) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "You are not a member of this tenant" });
+        }
+
+        return next();
+    });

@@ -1,0 +1,32 @@
+# Used for development
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0.32
+    restart: unless-stopped
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: dashboard
+      MYSQL_DATABASE: dashboard
+      MYSQL_USER: dashboard
+      MYSQL_PASSWORD: dashboard
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: unless-stopped
+    ports:
+      - 8080:80
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: dashboard
+      PMA_PASSWORD: dashboard
+      PMA_ARBITRARY: 1
+
+volumes:
+  mysql:
+    driver: local
