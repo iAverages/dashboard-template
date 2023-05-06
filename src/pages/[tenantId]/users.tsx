@@ -4,13 +4,12 @@ import { api } from "~/utils/api";
 
 const Users = () => {
     const { data: tenant } = api.self.selectedTenant.useQuery();
-    const { data: users } = api.tenant.getMembers.useQuery({ tenantId: tenant!.id }, { enabled: !!tenant });
+    const { data: users } = api.tenant.getMembers.useQuery({ tenantId: tenant?.id ?? "" }, { enabled: !!tenant });
 
     const { data } = useSession();
     return (
         <>
             users
-            {JSON.stringify(data)}
             <div>
                 <Table>
                     <THead>
