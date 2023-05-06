@@ -173,7 +173,13 @@ export const tenantProcedure = t.procedure
     )
     .use(async ({ ctx, input, next }) => {
         if (ctx.session.user.globalRole.id === GlobalRole.SUPERADMIN) {
-            return next();
+            const tenant = await ctx.prisma.tenant.findFirst({
+                where: {
+                    id: input.tenantId,
+                },
+            });
+
+            return next({ ctx: { ...ctx, tenant } });
         }
 
         const membership = await ctx.prisma.membership.findFirst({
