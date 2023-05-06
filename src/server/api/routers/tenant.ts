@@ -45,4 +45,16 @@ export const tenantRouter = createTRPCRouter({
             },
         });
     }),
+
+    statistics: tenantProcedure.query(async ({ ctx, input }) => {
+        const members = await ctx.prisma.membership.count({
+            where: {
+                tenantId: input.tenantId,
+            },
+        });
+
+        return {
+            members,
+        };
+    }),
 });

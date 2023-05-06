@@ -1,36 +1,33 @@
 import { useSession } from "next-auth/react";
-import { TBody, THead, Table, Td, Tr } from "~/components/table";
-import useTenant from "~/hooks/useTenant";
+import { Show } from "~/components/show";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { api } from "~/utils/api";
 
 const Users = () => {
-    // const [tenant] = useTenant();
-    // const { data: users } = api.tenant.getMembers.useQuery({ tenantId: tenant.id });
+    const { data: tenantData } = api.self.selectedTenant.useQuery();
+    const { data: statisticsData } = api.tenant.statistics.useQuery(
+        { tenantId: tenantData?.id ?? "" },
+        { enabled: !!tenantData }
+    );
 
     const { data } = useSession();
+
     return (
-        <>
-            users
-            {JSON.stringify(data)}
-            <div>
-                <Table>
-                    <THead>
-                        <Tr>
-                            <Td>Name</Td>
-                            <Td>Email</Td>
-                        </Tr>
-                    </THead>
-                    <TBody>
-                        {/* {users?.map(({ user }) => (
-                            <Tr key={user?.id}>
-                                <Td>{user?.name}</Td>
-                                <Td>{user?.email}</Td>
-                            </Tr>
-                        ))} */}
-                    </TBody>
-                </Table>
-            </div>
-        </>
+        <Show when={[tenantData, statisticsData] as const}>
+            {([tenant, statistics]) => (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{statistics.members}</div>
+                            {/* <p className="text-xs text-muted-foreground">+180.1% from last month</p> */}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+        </Show>
     );
 };
 
