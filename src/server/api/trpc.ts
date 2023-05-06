@@ -176,16 +176,19 @@ export const tenantProcedure = t.procedure
             return next();
         }
 
-        const isMember = !!(await ctx.prisma.membership.findFirst({
+        const membership = await ctx.prisma.membership.findFirst({
             where: {
                 userId: ctx.session.user.id,
                 tenantId: input.tenantId,
             },
-        }));
+            select: {
+                tenant: true,
+            },
+        });
 
-        if (!isMember) {
+        if (membership === null) {
             throw new TRPCError({ code: "UNAUTHORIZED", message: "You are not a member of this tenant" });
         }
 
-        return next();
+        return next({ ctx: { ...ctx, tenant: membership.tenant } });
     });
