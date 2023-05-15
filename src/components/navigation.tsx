@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { ReactNode, useCallback, useEffect } from "react";
+import { ReactNode, useCallback } from "react";
 import TeamSwitcher from "~/components/tenantSwitcher";
 import { ThemeToggle } from "~/components/themeSwitcher";
 import { cn } from "~/lib/utils";
@@ -21,12 +21,9 @@ const NavLink = ({ href, name }: NavLinkProps) => {
         const urlSplit = url.split("/");
         urlSplit.shift();
         urlSplit.shift();
-        return "/" + urlSplit.join("/");
+        const a = urlSplit.join("/");
+        return a;
     }, []);
-
-    useEffect(() => {
-        console.log(getUrl(pathname), getUrl(pathname) === href, getUrl(pathname).startsWith(href));
-    }, [pathname, href]);
 
     return (
         <Link
@@ -43,15 +40,15 @@ const NavLink = ({ href, name }: NavLinkProps) => {
 
 const links: NavLinkProps[] = [
     {
-        href: "/dashboard",
+        href: "dashboard",
         name: "Dashboard",
     },
     {
-        href: "/users",
+        href: "users",
         name: "Manage Users",
     },
     {
-        href: "/settings",
+        href: "settings",
         name: "Settings",
     },
 ];

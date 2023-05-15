@@ -9,6 +9,8 @@ import "~/styles/globals.css";
 import { Fragment } from "react";
 import { NextPage } from "next";
 import GlobalLayout from "~/components/layout";
+import { ToastProvider } from "~/components/ui/toast";
+import { Toaster } from "~/components/ui/toaster";
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
     removeGlobalLayout?: boolean;
@@ -27,9 +29,12 @@ const MyApp: AppType<{ session: Session | null }> = ({
     return (
         <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-                <Layout>
-                    <Component {...pageProps} />
-                </Layout>
+                <ToastProvider>
+                    <Layout>
+                        <Component {...pageProps} />
+                        <Toaster />
+                    </Layout>
+                </ToastProvider>
             </ThemeProvider>
         </SessionProvider>
     );

@@ -1,3 +1,4 @@
+import { da } from "date-fns/locale";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
@@ -11,9 +12,7 @@ type LayoutProps = {
 const Layout = ({ children }: LayoutProps) => {
     const { status } = useSession();
     const router = useRouter();
-    const { data } = api.self.selectedTenant.useQuery(undefined, {
-        enabled: status === "authenticated",
-    });
+    const { data, mutate, isLoading } = api.self.defaultTenant.useMutation();
 
     useEffect(() => {
         if (status === "loading") return;
@@ -23,10 +22,22 @@ const Layout = ({ children }: LayoutProps) => {
             return;
         }
 
-        if (status === "authenticated" && router.pathname === "/" && data) {
+        if (status === "authenticated" && router.pathname === "/") {
+            if (data === undefined) {
+                mutate();
+                return;
+            }
+
+            if (data === null) {
+                router.push("/getting-started");
+                return;
+            }
+
             router.push(`/${data.id}/dashboard`);
         }
     }, [status, router, data]);
+
+    if (isLoading) return null;
 
     if (status === "authenticated") return <Navigation>{children}</Navigation>;
 

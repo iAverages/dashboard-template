@@ -4,11 +4,14 @@ type MapNonNullable<T> = {
     [K in keyof T]: NonNullable<T[K]>;
 };
 
+type ShowPropChild<T> =
+    | ((item: T extends ReadonlyArray<any> ? MapNonNullable<T> : NonNullable<T>) => ReactElement)
+    | ReactElement;
+
 type ShowProps<T> = {
     when: T | undefined | null | false;
-    keyed?: boolean;
     fallback?: ReactElement;
-    children: (item: T extends ReadonlyArray<any> ? MapNonNullable<T> : NonNullable<T>) => ReactElement;
+    children: ShowPropChild<T>;
 };
 
 export function Show<T>({ when, fallback, children }: ShowProps<T>) {
@@ -23,10 +26,22 @@ export function Show<T>({ when, fallback, children }: ShowProps<T>) {
 
         const allTrue = when.every((item) => !!item);
         if (allTrue) {
-            return children(when as any);
+            if (children instanceof Function) {
+                return handleChildren(children, when);
+            } else {
+                return children;
+            }
         }
         return fallback ?? null;
     }
 
-    return children(when as any);
+    return handleChildren(children, when);
+}
+
+function handleChildren<T>(children: ShowPropChild<T>, item: T) {
+    if (children instanceof Function) {
+        return children(item as any);
+    } else {
+        return children;
+    }
 }

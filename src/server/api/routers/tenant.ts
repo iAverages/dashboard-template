@@ -22,7 +22,7 @@ export const tenantRouter = createTRPCRouter({
             });
         }),
 
-    get: tenantProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+    get: tenantProcedure.query(async ({ ctx, input }) => {
         return ctx.tenant;
     }),
 
@@ -47,5 +47,24 @@ export const tenantRouter = createTRPCRouter({
         return {
             members,
         };
+    }),
+
+    roles: tenantProcedure.query(async ({ ctx, input }) => {
+        return (
+            ctx.prisma.role.findMany({
+                where: {
+                    tenantId: input.tenantId,
+                },
+            }) ?? []
+        );
+    }),
+
+    createRole: tenantProcedure.input(z.object({ name: z.string() })).mutation(async ({ ctx, input }) => {
+        return ctx.prisma.role.create({
+            data: {
+                name: input.name,
+                tenantId: input.tenantId,
+            },
+        });
     }),
 });

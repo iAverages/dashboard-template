@@ -1,16 +1,15 @@
 import { useSession } from "next-auth/react";
 import { Show } from "~/components/show";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import useTenant from "~/hooks/useTenant";
 import { api } from "~/utils/api";
 
 const Users = () => {
-    const { data: tenantData } = api.self.selectedTenant.useQuery();
+    const { data: tenantData } = useTenant();
     const { data: statisticsData } = api.tenant.statistics.useQuery(
         { tenantId: tenantData?.id ?? "" },
         { enabled: !!tenantData }
     );
-
-    const { data } = useSession();
 
     return (
         <Show when={[tenantData, statisticsData] as const}>

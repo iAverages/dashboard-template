@@ -24,11 +24,10 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "~/utils/api";
 import { Show } from "~/components/show";
 import { useSession } from "next-auth/react";
-import useTenant from "~/hooks/useTenant";
 import { useRouter } from "next/router";
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<typeof PopoverTrigger>;
@@ -37,9 +36,11 @@ interface TeamSwitcherProps extends PopoverTriggerProps {}
 
 export default function TeamSwitcher({ className }: TeamSwitcherProps) {
     const apiCtx = api.useContext();
+
+    const tenantId = useRouter().query.tenantId as string;
     const { data: tenantData } = api.self.tenants.useQuery();
-    const { data: selectedTenantData } = api.self.selectedTenant.useQuery();
-    const { mutateAsync: switchTenant } = api.self.switchTenants.useMutation();
+    const { mutateAsync: getDefaultTenant, isLoading: isGettingDefaultTenant } = api.self.defaultTenant.useMutation();
+    const { data: selectedTenantData } = api.tenant.get.useQuery({ tenantId }, { enabled: !!tenantId });
     const { mutateAsync: createTenant, isLoading: isCreatingTenant } = api.tenant.create.useMutation();
     const { data: sessionData } = useSession();
     const router = useRouter();
@@ -56,26 +57,34 @@ export default function TeamSwitcher({ className }: TeamSwitcherProps) {
     };
 
     const handleSwitchTenant = async (tenantId: string) => {
+        if (!tenantId) {
+            router.push("/getting-started");
+            return;
+        }
+
         const pathSplit = router.asPath.split("/");
         // Remove the first two elements, which are the empty string and the tenantId
         pathSplit.shift();
         pathSplit.shift();
 
-        switchTenant({ tenantId });
-
         setOpen(false);
         setShowNewTeamDialog(false);
-        const selectedTenantLocalInfo = apiCtx.self.tenants.getData()?.find(({ tenant }) => tenant.id === tenantId);
-
-        // Try to perform "optimistic" update, if the tenant is already in the cache
-        if (selectedTenantLocalInfo) {
-            apiCtx.self.selectedTenant.setData(undefined, selectedTenantLocalInfo.tenant);
-        } else {
-            apiCtx.self.selectedTenant.fetch();
-        }
 
         router.push(`/${tenantId}/${pathSplit.join("/")}`);
     };
+
+    // useEffect(() => {
+    //     const getId = async () => {
+    //         if (!tenantId) {
+    //             const tenant = await getDefaultTenant();
+    //             handleSwitchTenant(tenant?.id || "");
+    //         }
+    //     };
+
+    //     if (isGettingDefaultTenant) return;
+
+    //     getId();
+    // }, [tenantId]);
 
     return (
         <Show when={selectedTenantData}>
