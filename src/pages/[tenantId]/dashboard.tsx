@@ -1,4 +1,3 @@
-import { useSession } from "next-auth/react";
 import { Show } from "~/components/show";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import useTenant from "~/hooks/useTenant";
@@ -13,7 +12,7 @@ const Users = () => {
 
     return (
         <Show when={[tenantData, statisticsData] as const}>
-            {([tenant, statistics]) => (
+            {([_tenant, statistics]) => (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

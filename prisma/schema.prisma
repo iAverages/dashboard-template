@@ -96,11 +96,19 @@ enum GlobalRole {
 }
 
 model Role {
-    id         String       @id @default(cuid())
-    name       String
-    tenant     Tenant?      @relation(fields: [tenantId], references: [id])
-    tenantId   String?
-    membership Membership[]
+    id          String       @id @default(cuid())
+    name        String
+    tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+    tenantId    String?
+    membership  Membership[]
+    permissions Permission[]
 
     @@unique([name, tenantId])
+}
+
+model Permission {
+    id     String  @id @default(cuid())
+    name   String
+    Role   Role?   @relation(fields: [roleId], references: [id])
+    roleId String?
 }

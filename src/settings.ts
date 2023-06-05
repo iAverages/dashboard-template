@@ -9,4 +9,6 @@ export const PERMISSIONS = [
     "VIEW_TENANT_SETTINGS",
     "MANAGE_TENANT_SETTINGS",
     "MANAGE_BILLING",
-];
+] as const;
+
+export type Permission = (typeof PERMISSIONS)[number];

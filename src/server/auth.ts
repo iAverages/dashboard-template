@@ -4,7 +4,7 @@ import DiscordProvider from "next-auth/providers/discord";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { env } from "~/env.mjs";
 import { prisma } from "~/server/db";
-import { Role, User as PrismaUser } from "@prisma/client";
+import { type User as PrismaUser } from "@prisma/client";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -16,10 +16,11 @@ declare module "next-auth" {
     interface Session extends DefaultSession {
         user: {
             id: string;
-            globalRole: Role;
-        } & DefaultSession["user"];
+        } & DefaultSession["user"] &
+            PrismaUser;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-interface
     interface User extends PrismaUser {}
 }
 
@@ -45,6 +46,7 @@ export const authOptions: NextAuthOptions = {
 
             // Update membership to associate the user with the tenant.
             if (invited.length > 0 || invited[0] != null) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 const tenant = invited[0]!;
                 await prisma.membership.update({
                     where: {
@@ -78,7 +80,7 @@ export const authOptions: NextAuthOptions = {
             // Otherwise, create a new tenant for the user.
             await prisma.tenant.create({
                 data: {
-                    name: `${user.name}'s Tenant`,
+                    name: user.name ? `${user.name}'s Tenant` : "New Tenant",
                     memberships: {
                         create: {
                             roleId: tenantOwnerRole.id,

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback } from "react";
 import TeamSwitcher from "~/components/tenantSwitcher";
 import { ThemeToggle } from "~/components/themeSwitcher";
+import useTenantId from "~/hooks/useTenantId";
 import { cn } from "~/lib/utils";
 
 type NavigationProps = {
@@ -15,7 +16,8 @@ type NavLinkProps = {
 };
 
 const NavLink = ({ href, name }: NavLinkProps) => {
-    const { pathname, query } = useRouter();
+    const tenantId = useTenantId();
+    const { pathname } = useRouter();
 
     const getUrl = useCallback((url: string) => {
         const urlSplit = url.split("/");
@@ -27,7 +29,7 @@ const NavLink = ({ href, name }: NavLinkProps) => {
 
     return (
         <Link
-            href={`/${query.tenantId}/${href}`}
+            href={`/${tenantId}/${href}`}
             className={cn(
                 "transition-colors hover:text-foreground/80",
                 getUrl(pathname).startsWith(href) ? "text-foreground" : "text-foreground/60"

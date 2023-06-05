@@ -102,21 +102,30 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z, ZodError } from "zod";
-import { GLOBAL_TENANT_ROLES } from "~/settings";
+import { GLOBAL_TENANT_ROLES, Permission } from "~/settings";
 import { GlobalRole } from "@prisma/client";
 
-const t = initTRPC.context<typeof createTRPCContext>().create({
-    transformer: superjson,
-    errorFormatter({ shape, error }) {
-        return {
-            ...shape,
-            data: {
-                ...shape.data,
-                zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
-            },
-        };
-    },
-});
+interface Meta {
+    permissions: Permission[];
+}
+
+const t = initTRPC
+    .context<typeof createTRPCContext>()
+    .meta<Meta>()
+    .create({
+        transformer: superjson,
+        errorFormatter({ shape, error }) {
+            return {
+                ...shape,
+                data: {
+                    ...shape.data,
+                    zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+                },
+            };
+        },
+    });
+
+export const trpc = t;
 
 /**
  * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
@@ -146,6 +155,7 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
     if (!ctx.session || !ctx.session.user) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
     }
+
     return next({
         ctx: {
             // infers the `session` as non-nullable
@@ -171,15 +181,29 @@ export const tenantProcedure = t.procedure
             tenantId: z.string(),
         })
     )
-    .use(async ({ ctx, input, next }) => {
-        if (ctx.session.user.globalRole.id === GlobalRole.SUPERADMIN) {
+    .use(async ({ ctx, input, next, meta }) => {
+        if (ctx.session.user.globalRole === GlobalRole.SUPERADMIN) {
             const tenant = await ctx.prisma.tenant.findFirst({
                 where: {
                     id: input.tenantId,
                 },
             });
-
-            return next({ ctx: { ...ctx, tenant } });
+            if (tenant === null) {
+                throw new TRPCError({ code: "NOT_FOUND", message: "Tenant not found" });
+            }
+            return next({
+                ctx: {
+                    ...ctx,
+                    membership: {
+                        tenant,
+                        role: {
+                            name: "Tenant Owner",
+                            id: ctx.globalMeta.roles["Tenant Owner"],
+                            tenantId: null,
+                        },
+                    },
+                },
+            });
         }
 
         const membership = await ctx.prisma.membership.findFirst({
@@ -189,6 +213,7 @@ export const tenantProcedure = t.procedure
             },
             select: {
                 tenant: true,
+                role: true,
             },
         });
 
@@ -196,5 +221,24 @@ export const tenantProcedure = t.procedure
             throw new TRPCError({ code: "UNAUTHORIZED", message: "You are not a member of this tenant" });
         }
 
-        return next({ ctx: { ...ctx, tenant: membership.tenant } });
+        // Route has permissions, check if user has permission
+        if (meta?.permissions) {
+            const role = membership.role;
+            // Tenant owner has all permissions
+            if (role.id !== ctx.globalMeta.roles["Tenant Owner"]) {
+                const permissions = await ctx.prisma.permission.findMany({
+                    where: {
+                        roleId: role.id,
+                        name: {
+                            in: meta.permissions,
+                        },
+                    },
+                });
+                if (!permissions || permissions.length === 0) {
+                    throw new TRPCError({ code: "UNAUTHORIZED", message: "You do not have permission to access this" });
+                }
+            }
+        }
+
+        return next({ ctx: { ...ctx, membership } });
     });

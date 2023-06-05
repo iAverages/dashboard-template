@@ -18,7 +18,7 @@ const Layout = ({ children }: LayoutProps) => {
         if (status === "loading") return;
 
         if (status === "unauthenticated") {
-            signIn();
+            void signIn();
             return;
         }
 
@@ -29,13 +29,13 @@ const Layout = ({ children }: LayoutProps) => {
             }
 
             if (data === null) {
-                router.push("/getting-started");
+                void router.push("/getting-started");
                 return;
             }
 
-            router.push(`/${data.id}/dashboard`);
+            void router.push(`/${data.id}/dashboard`);
         }
-    }, [status, router, data]);
+    }, [status, router, data, mutate]);
 
     if (isLoading) return null;
 

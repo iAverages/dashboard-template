@@ -22,8 +22,8 @@ export const tenantRouter = createTRPCRouter({
             });
         }),
 
-    get: tenantProcedure.query(async ({ ctx, input }) => {
-        return ctx.tenant;
+    get: tenantProcedure.query(({ ctx }) => {
+        return ctx.membership.tenant;
     }),
 
     getMembers: tenantProcedure.query(async ({ ctx, input }) => {

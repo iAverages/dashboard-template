@@ -12,16 +12,14 @@ import {
     DialogTitle,
 } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
-import { Input } from "~/components/ui/input";
-import { useState } from "react";
 import { useToast } from "~/components/ui/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import useTenant from "~/hooks/useTenant";
+import { Input } from "~/components/ui/input";
+import Form, { useZodForm } from "~/components/form";
 
-const roles = () => {
-    const [showCreateModal, toggleCreateModal] = useToggle(false);
+const Roles = () => {
+    const createModalToggle = useToggle(false);
     const { data: tenantData, isLoading: isLoadingSelectedTenant } = useTenant();
     const { data: rolesData, isLoading: isLoadingTenantRoles } = api.tenant.roles.useQuery(
         { tenantId: tenantData?.id ?? "" },
@@ -32,34 +30,29 @@ const roles = () => {
 
     return (
         <>
-            <Show when={showCreateModal}>{(roles) => <></>}</Show>
+            <Show when={!isLoading && createModalToggle[1]}>
+                <CreateRoleModal toggle={createModalToggle} />
+            </Show>
             <Show when={!isLoading}>
-                <Button onClick={toggleCreateModal} disabled={isLoading}>
+                <Button onClick={createModalToggle[1]} disabled={isLoading}>
                     Create Role
                 </Button>
             </Show>
-            <Show
-                when={rolesData}
-                fallback={
-                    <>
-                        {isLoading && <div>loading</div>}
-                        {!isLoading && <CreateRoleModal />}
-                    </>
-                }
-            >
+            <Show when={rolesData} fallback={<>{isLoading && <div>loading</div>}</>}>
                 {(roles) => (
                     <>
                         <Table>
                             <THead>
                                 <Tr>
+                                    <Td>Id</Td>
                                     <Td>Name</Td>
                                 </Tr>
                             </THead>
                             <TBody>
                                 {roles.map((role) => (
                                     <Tr key={role.id}>
+                                        <Td>{role.id}</Td>
                                         <Td>{role.name}</Td>
-                                        {/* <Td>{role.}</Td> */}
                                     </Tr>
                                 ))}
                             </TBody>
@@ -83,67 +76,68 @@ const createRoleSchema = z.object({
     roleName: z.string().min(1),
 });
 
-const CreateRoleModal = () => {
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<CreateRoleFormValues>({ resolver: zodResolver(createRoleSchema) });
+const CreateRoleModal = ({ toggle: toggleable }: { toggle: ReturnType<typeof useToggle> }) => {
+    const tCtx = api.useContext();
+    const { data: tenantData } = useTenant();
+    const { mutateAsync } = api.tenant.createRole.useMutation({
+        onMutate: async (data) => {
+            await tCtx.tenant.roles.invalidate({ tenantId: tenantData?.id ?? "" });
+            const prev = tCtx.tenant.roles.getData({ tenantId: tenantData?.id ?? "" });
+            tCtx.tenant.roles.setData({ tenantId: tenantData?.id ?? "" }, (old) => {
+                return [...(old ?? []), { ...data, id: "temp-id" }];
+            });
 
-    const [roleName, setRoleName] = useState("");
-    const { data: tenantData, isLoading: isLoadingSelectedTenant } = useTenant();
-    const { mutateAsync } = api.tenant.createRole.useMutation();
+            return { prev };
+        },
+        onError: (_, __, context) => {
+            if (!context?.prev) return;
+            tCtx.tenant.roles.setData({ tenantId: tenantData?.id ?? "" }, context.prev);
+        },
+        onSettled: () => {
+            void tCtx.tenant.roles.invalidate({ tenantId: tenantData?.id ?? "" });
+        },
+    });
     const { toast } = useToast();
+    const [isOpen, toggle] = toggleable;
+    const form = useZodForm({
+        schema: createRoleSchema,
+    });
 
-    const onSubmit = handleSubmit((data) => {
+    const onSubmit = async (data: CreateRoleFormValues) => {
         if (!tenantData) return;
-        mutateAsync({
+        await mutateAsync({
             tenantId: tenantData?.id ?? "",
             name: data.roleName,
         });
-    });
+        toast({
+            title: "Role Created",
+        });
+        toggle();
+    };
 
     return (
-        <Dialog open={true}>
+        <Dialog open={isOpen} onOpenChange={toggle}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Create team</DialogTitle>
-                    <DialogDescription>Add a new team to manage products and customers.</DialogDescription>
-                </DialogHeader>
-                <div>
-                    <div className="space-y-4 py-2 pb-4">
-                        <div className="space-y-2">
-                            <form onSubmit={onSubmit}>
-                                <Label {...register("roleName")}>Tenant name</Label>
-                                <Input
-                                    onChange={(e) => setRoleName(e.target.value)}
-                                    id="name"
-                                    placeholder={"New Role"}
-                                    disabled={isLoadingSelectedTenant}
-                                />
-                            </form>
+                <Form form={form} onSubmit={onSubmit}>
+                    <DialogHeader>
+                        <DialogTitle>Create a Role</DialogTitle>
+                        <DialogDescription>
+                            A role can been assigned to users, roles can group sets of permissions togeather
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div>
+                        <div className="space-y-4 py-2 pb-4">
+                            <Label>Role Name</Label>
+                            <Input {...form.register("roleName")} />
                         </div>
                     </div>
-                </div>
-                <DialogFooter>
-                    <Button
-                        onClick={() => {
-                            toast({
-                                title: "Role Created",
-                            });
-                        }}
-                    >
-                        Click
-                    </Button>
-                    {/* <Button variant="outline" onClick={() => setShowNewTeamDialog(false)} disabled={isCreatingTenant}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" onClick={handleCreateTenant} disabled={isCreatingTenant}>
-                        Create
-                    </Button> */}
-                </DialogFooter>
+                    <DialogFooter>
+                        <Button type="submit">Create</Button>
+                    </DialogFooter>
+                </Form>
             </DialogContent>
         </Dialog>
     );
 };
-export default roles;
+
+export default Roles;

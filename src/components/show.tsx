@@ -1,4 +1,4 @@
-import { ReactElement } from "react";
+import { type ReactElement } from "react";
 
 type MapNonNullable<T> = {
     [K in keyof T]: NonNullable<T[K]>;

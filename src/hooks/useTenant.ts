@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { ReactQueryOptions, RouterInputs, api } from "~/utils/api";
+import { type ReactQueryOptions, api } from "~/utils/api";
 
 const useTenant = (opts?: ReactQueryOptions["tenant"]["get"]) => {
     const router = useRouter();
